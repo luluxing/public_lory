@@ -1,0 +1,11 @@
+hospital_id,name,coordinates,trauma_level
+H900,Mercy Hospital,POINT(-87.6230 41.8500),I
+H901,Northwestern Memorial,POINT(-87.6200 41.8940),I
+H902,Rush University Medical Center,POINT(-87.6730 41.8740),I
+H903,St. Mary Medical,POINT(-87.6930 41.9030),II
+H904,UChicago Medicine,POINT(-87.6060 41.7890),I
+H905,Mount Sinai,POINT(-87.7000 41.8590),II
+H906,West Suburban,POINT(-87.7880 41.8890),II
+H907,Swedish Hospital,POINT(-87.6990 41.9760),II
+H908,Provident Hospital,POINT(-87.6160 41.8090),II
+H909,Saint Francis Evanston,POINT(-87.6770 42.0480),II

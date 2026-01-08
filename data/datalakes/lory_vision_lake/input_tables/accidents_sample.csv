@@ -1,0 +1,6 @@
+accident_id,date,victim_type,location,neighborhood,severity
+A100,2025-05-01,pedestrian,POINT(-87.6270 41.8810),Loop,major
+A101,2025-05-02,cyclist,POINT(-87.6340 41.8930),River North,moderate
+A102,2025-05-03,motorist,POINT(-87.6230 41.8670),South Loop,minor
+A103,2025-05-04,scooter,POINT(-87.6600 41.8820),West Loop,moderate
+A104,2025-05-05,pedestrian,POINT(-87.6605 41.8580),Pilsen,major

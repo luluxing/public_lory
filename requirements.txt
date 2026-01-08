@@ -1,0 +1,12 @@
+# Core app framework
+streamlit
+leafmap
+streamlit-folium
+folium
+
+# Data processing
+pandas
+
+# Utilities
+tqdm
+streamlit-scroll-to-top

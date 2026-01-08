@@ -1,0 +1,20 @@
+report_id,accident_id,officer_id,status,precinct
+R501,A100,CH-881,closed,Loop
+R502,A101,CH-882,in_review,River North
+R503,A102,CH-883,pending,South Loop
+R504,A103,CH-884,open,West Loop
+R505,A104,CH-885,closed,Pilsen
+R506,A105,CH-886,in_review,Chinatown
+R507,A106,CH-887,pending,Bronzeville
+R508,A107,CH-888,open,Hyde Park
+R509,A108,CH-889,closed,Little Village
+R510,A109,CH-890,in_review,Logan Square
+R511,A110,CH-891,pending,Wicker Park
+R512,A111,CH-892,open,West Town
+R513,A112,CH-893,closed,Uptown
+R514,A113,CH-894,in_review,Edgewater
+R515,A114,CH-895,pending,Avondale
+R516,A115,CH-896,open,Pullman
+R517,A116,CH-897,closed,Englewood
+R518,A117,CH-898,in_review,Oak Park
+R519,A118,CH-899,pending,Evanston

@@ -1,0 +1,7 @@
+agency_id,agency_name,license_status,hq_location,service_focus
+AG01,Loop Realty,active,POINT(-87.6285 41.8800),central
+AG02,Northside Living,active,POINT(-87.6345 41.8940),north
+AG03,Metro Loft Group,active,POINT(-87.6620 41.8830),central
+AG04,Neighborhood Homes,active,POINT(-87.7060 41.8440),west
+AG05,Lakeshore Realty,active,POINT(-87.6600 41.9730),lakeshore
+AG06,South & Suburban,active,POINT(-87.6065 41.7080),south

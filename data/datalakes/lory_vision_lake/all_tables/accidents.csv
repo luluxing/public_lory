@@ -1,0 +1,20 @@
+accident_id,date,victim_type,location,neighborhood,severity
+A100,2025-05-01,pedestrian,POINT(-87.6270 41.8810),Loop,major
+A101,2025-05-02,cyclist,POINT(-87.6340 41.8930),River North,moderate
+A102,2025-05-03,motorist,POINT(-87.6230 41.8670),South Loop,minor
+A103,2025-05-04,scooter,POINT(-87.6600 41.8820),West Loop,moderate
+A104,2025-05-05,pedestrian,POINT(-87.6605 41.8580),Pilsen,major
+A105,2025-05-06,motorist,POINT(-87.6320 41.8520),Chinatown,minor
+A106,2025-05-07,cyclist,POINT(-87.6190 41.8170),Bronzeville,major
+A107,2025-05-08,pedestrian,POINT(-87.5930 41.7940),Hyde Park,moderate
+A108,2025-05-09,motorist,POINT(-87.7050 41.8430),Little Village,major
+A109,2025-05-10,pedestrian,POINT(-87.6990 41.9230),Logan Square,minor
+A110,2025-05-11,cyclist,POINT(-87.6780 41.9080),Wicker Park,moderate
+A111,2025-05-12,pedestrian,POINT(-87.6670 41.9000),West Town,minor
+A112,2025-05-13,cyclist,POINT(-87.6590 41.9720),Uptown,major
+A113,2025-05-14,pedestrian,POINT(-87.6600 41.9850),Edgewater,minor
+A114,2025-05-15,motorist,POINT(-87.7050 41.9480),Avondale,moderate
+A115,2025-05-16,pedestrian,POINT(-87.6060 41.7070),Pullman,major
+A116,2025-05-17,cyclist,POINT(-87.6410 41.7750),Englewood,moderate
+A117,2025-05-18,motorist,POINT(-87.7840 41.8890),Oak Park,minor
+A118,2025-05-19,pedestrian,POINT(-87.6880 42.0450),Evanston,moderate

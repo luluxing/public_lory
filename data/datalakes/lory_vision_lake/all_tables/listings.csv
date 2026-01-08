@@ -1,0 +1,13 @@
+listing_id,property_type,price,location,agency_id,neighborhood
+L300,apartment,320000,POINT(-87.6280 41.8795),AG01,Loop
+L301,condo,410000,POINT(-87.6350 41.8935),AG02,River North
+L302,loft,450000,POINT(-87.6610 41.8825),AG03,West Loop
+L303,townhome,360000,POINT(-87.6610 41.8585),AG01,Pilsen
+L304,apartment,295000,POINT(-87.7055 41.8435),AG04,Little Village
+L305,apartment,380000,POINT(-87.6785 41.9085),AG02,Wicker Park
+L306,condo,430000,POINT(-87.6680 41.9005),AG05,West Town
+L307,apartment,340000,POINT(-87.6595 41.9725),AG03,Uptown
+L308,condo,365000,POINT(-87.6605 41.9855),AG05,Edgewater
+L309,townhome,310000,POINT(-87.7045 41.9485),AG04,Avondale
+L310,apartment,255000,POINT(-87.6065 41.7075),AG06,Pullman
+L311,condo,375000,POINT(-87.6875 42.0455),AG06,Evanston

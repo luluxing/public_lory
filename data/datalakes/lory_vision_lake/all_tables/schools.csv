@@ -1,0 +1,11 @@
+school_id,name,coordinates,neighborhood
+SC01,Loop STEM Academy,POINT(-87.6290 41.8785),Loop
+SC02,River North Prep,POINT(-87.6355 41.8925),River North
+SC03,Pilsen Community School,POINT(-87.6615 41.8560),Pilsen
+SC04,Hyde Park Academy,POINT(-87.5950 41.7950),Hyde Park
+SC05,West Town Charter,POINT(-87.6685 41.8990),West Town
+SC06,Uptown Arts High,POINT(-87.6620 41.9730),Uptown
+SC07,Englewood Technical,POINT(-87.6430 41.7745),Englewood
+SC08,Evanston Township,POINT(-87.6890 42.0460),Evanston
+SC09,Logan Square Magnet,POINT(-87.6980 41.9235),Logan Square
+SC10,Oak Park Academy,POINT(-87.7845 41.8895),Oak Park

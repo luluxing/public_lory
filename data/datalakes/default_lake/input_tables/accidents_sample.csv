@@ -1,0 +1,5 @@
+accident_id,victim_type,date
+A001,pedestrian,2025-05-12
+A002,pedestrian,2025-05-14
+A003,cyclist,2025-05-16
+A004,motorist,2025-05-18
