@@ -86,14 +86,8 @@ def render_data_discovery_graph_section(
         if (left, right) in rel_join_pairs or (right, left) in rel_join_pairs:
             continue
         
-        # Use spatial join predicate from session state
-        predicate_map = {
-            "Containment": "contain",
-            "Overlapping": "overlap",
-            "Distance": "distance"
-        }
-        selected_predicate = st.session_state.get("graph_spatial_predicate", "Containment")
-        predicate = predicate_map.get(selected_predicate, "contain")
+        # Randomly assign spatial join predicate type
+        predicate = random.choice(["contain", "overlap", "distance"])
         
         # Format attributes as "table.column"
         # Parse the label (which contains column names) and format them
@@ -384,14 +378,16 @@ def render_data_discovery_graph_section(
                 .set_table_styles([{"selector": "th", "props": [("font-size", "100%")]}])
                 .to_html()
             )
-            # Wrap entire table in scrollable container showing ~5 rows at a time
-            scrollable_html = f'<div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">{join_details_html}</div>'
-            st.markdown(scrollable_html, unsafe_allow_html=True)
+            st.markdown(join_details_html, unsafe_allow_html=True)
+            
+            # Add "Next step" button below the table
+            if st.button("Next step"):
+                st.session_state.show_join_paths = True
         else:
             st.info("No joins are currently displayed in the graph.")
 
-    # Show Join Paths section when join details are shown
-    if st.session_state.get("show_join_details", False):
+    # Only show Join Paths section if "Next step" has been clicked
+    if st.session_state.get("show_join_paths", False):
         _render_interesting_paths(west_lafayette_bbox, lafayette_default_bbox)
 
 
@@ -494,12 +490,13 @@ def _render_interesting_paths(west_lafayette_bbox, lafayette_default_bbox):
     XB = -87.0  # west (minimum longitude)
     XC = 41.0  # north (maximum latitude)
     XD = -86.0  # east (maximum longitude)
-    # Get parameters from session state (set in sidebar)
-    path_min_len = st.session_state.get("path_min_len", "")
-    path_max_len = st.session_state.get("path_max_len", "")
-    path_num_relational_joins = st.session_state.get("path_num_relational_joins", 0)
-    path_num_spatial_joins = st.session_state.get("path_num_spatial_joins", 0)
-    path_spatial_join_type = st.session_state.get("path_spatial_join_type", "Containment")
+    row_1_col_1, row_1_col_2 = st.columns([1, 1])
+    max_len_checked = row_1_col_1.checkbox("Path length at most 5", value=False)
+    require_relational_checked = row_1_col_2.checkbox("At least one relational join", value=False)
+    row_2_col_1, row_2_col_2 = st.columns([1, 1])
+    min_len_checked = row_2_col_1.checkbox("Path length at least 3", value=False)
+    require_spatial_checked = row_2_col_2.checkbox("At least one spatial join", value=False)
+    max_len_input = st.text_input("Max path length (default 10)", value="")
 
     if st.button("Generate path"):
         # Build graph from edges_data (joinability information)
@@ -512,14 +509,7 @@ def _render_interesting_paths(west_lafayette_bbox, lafayette_default_bbox):
         
         for left, right, label in st.session_state.graph_spatial_edges:
             if (left, right) not in rel_join_pairs and (right, left) not in rel_join_pairs:
-                # Use spatial join type from join path parameters
-                predicate_map = {
-                    "Containment": "contain",
-                    "Overlapping": "overlap",
-                    "Distance": "distance"
-                }
-                selected_predicate = path_spatial_join_type
-                predicate = predicate_map.get(selected_predicate, "contain")
+                predicate = random.choice(["contain", "overlap", "distance"])
                 edges_data.append({"source": left, "target": right, "type": "spatial", "predicate": predicate})
         
         # Build adjacency list from edges
@@ -569,11 +559,13 @@ def _render_interesting_paths(west_lafayette_bbox, lafayette_default_bbox):
         # Generate paths from all nodes
         candidate_paths = []
         max_path_length = 10
-        if path_max_len.strip():
+        if max_len_input.strip():
             try:
-                max_path_length = max(2, int(path_max_len))
+                max_path_length = max(2, int(max_len_input))
             except ValueError:
                 max_path_length = 10
+        if max_len_checked:
+            max_path_length = min(max_path_length, 5)
         all_nodes = sorted(st.session_state.data_lake.keys())
         
         for start_node in all_nodes:
@@ -583,52 +575,28 @@ def _render_interesting_paths(west_lafayette_bbox, lafayette_default_bbox):
         # Remove duplicates
         candidate_paths = list(set(candidate_paths))
         
-        # Filter by minimum path length
-        if path_min_len.strip():
-            try:
-                min_path_length = max(2, int(path_min_len))
-                candidate_paths = [path for path in candidate_paths if len(path) >= min_path_length]
-            except ValueError:
-                pass
+        if max_len_checked:
+            candidate_paths = [path for path in candidate_paths if len(path) <= 5]
 
-        # Filter by maximum path length
-        if path_max_len.strip():
-            try:
-                max_path_length_val = max(2, int(path_max_len))
-                candidate_paths = [path for path in candidate_paths if len(path) <= max_path_length_val]
-            except ValueError:
-                pass
+        if min_len_checked:
+            candidate_paths = [path for path in candidate_paths if len(path) >= 3]
 
-        # Filter by number of relational joins
-        if path_num_relational_joins > 0:
-            def _count_joins_by_type(path, join_type):
-                count = 0
+        if require_spatial_checked or require_relational_checked:
+            def _path_has_type(path, required_type):
                 for i in range(len(path) - 1):
                     edge_key = frozenset((path[i], path[i + 1]))
-                    if join_type in edge_types.get(edge_key, set()):
-                        count += 1
-                return count
-            
-            candidate_paths = [
-                path for path in candidate_paths 
-                if _count_joins_by_type(path, "relation") >= path_num_relational_joins
-            ]
+                    if required_type in edge_types.get(edge_key, set()):
+                        return True
+                return False
 
-        # Filter by number of spatial joins (count all spatial joins, since edges_data uses the specified type)
-        if path_num_spatial_joins > 0:
-            def _count_spatial_joins(path):
-                count = 0
-                for i in range(len(path) - 1):
-                    edge_key = frozenset((path[i], path[i + 1]))
-                    if "spatial" in edge_types.get(edge_key, set()):
-                        count += 1
-                return count
-            
-            candidate_paths = [
-                path for path in candidate_paths 
-                if _count_spatial_joins(path) >= path_num_spatial_joins
-            ]
-
+            if require_spatial_checked:
+                candidate_paths = [
+                    path for path in candidate_paths if _path_has_type(path, "spatial")
+                ]
+            if require_relational_checked:
+                candidate_paths = [
+                    path for path in candidate_paths if _path_has_type(path, "relation")
+                ]
         
         # Sort by length descending (longer paths first), then alphabetically
         candidate_paths = sorted(candidate_paths, key=lambda x: (-len(x), x))

@@ -361,7 +361,79 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
         )
         st.caption(f"Current bbox: {bbox_label} (draw a rectangle to update)")
 
-    # Target attributes are now handled in the sidebar
+    # Initialize session state for next step
+    if "show_target_attributes" not in st.session_state:
+        st.session_state["show_target_attributes"] = False
+
+    # Show "Next step" button after bbox selection
+    if st.button("Next step", key="next_step_button"):
+        st.session_state["show_target_attributes"] = True
+        st.rerun()
+
+    # Only show target attributes section after clicking "Next step"
+    if not st.session_state["show_target_attributes"]:
+        return
+
+    st.markdown("**Step 2: Target attributes**")
+    st.markdown(
+        """
+        <style>
+        div[data-testid="InputInstructions"],
+        div[data-testid="stTextInputInstructions"] {
+            display: none !important;
+        }
+        div[data-testid="column"]:has(button[key="target_attr_add"]) button {
+            height: 38px;
+            margin-top: 4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    def _clean_attribute_label(value):
+        value = value.strip()
+        value = re.sub(r"^(closest|nearest)\s+", "", value, flags=re.IGNORECASE)
+        return value
+
+    def _submit_target_attributes():
+        raw_items = [
+            item.strip()
+            for item in st.session_state.get("target_attr_input", "").split(",")
+        ]
+        for raw in raw_items:
+            cleaned = _clean_attribute_label(raw)
+            if cleaned and cleaned not in st.session_state.target_schema:
+                st.session_state.target_schema.append(cleaned)
+                st.session_state.target_schema_raw.append(raw)
+        st.session_state["target_attr_input"] = ""
+
+    col_input, col_button = st.columns([4, 1])
+    with col_input:
+        st.text_area(
+            "Target attributes",
+            key="target_attr_input",
+            placeholder="e.g., accident_id, date, victim_type, hospitals.name",
+            label_visibility="collapsed",
+            height=90,
+        )
+    with col_button:
+        st.button(
+            "Submit",
+            use_container_width=True,
+            key="target_attr_submit",
+            on_click=_submit_target_attributes,
+        )
+        st.markdown(
+            """
+            <style>
+            div[data-testid="column"]:has(button[key="target_attr_submit"]) button {
+                height: 38px;
+                margin-top: 4px;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # Only show the rest if attributes have been submitted
     if not st.session_state.target_schema:
@@ -430,7 +502,56 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
     else:
         st.write("*None selected yet*")
 
-    # Spatial join preference is now handled in the sidebar
+    if "spatial_choice_mode" not in st.session_state:
+        st.session_state["spatial_choice_mode"] = "inferred"
+    if "spatial_manual_mode" not in st.session_state:
+        st.session_state["spatial_manual_mode"] = "exclude"
+    if "spatial_manual_distance_km" not in st.session_state:
+        st.session_state["spatial_manual_distance_km"] = None
+
+    inferred_inputs = st.session_state.target_schema_raw or st.session_state.target_schema
+    inferred = infer_spatial_preferences(inferred_inputs)
+    st.markdown("**Spatial join preference**")
+    if inferred["mode"] is None:
+        st.caption("Inferred predicate: none")
+    elif inferred["mode"] == "distance":
+        if inferred["distance_km"]:
+            st.caption(f"Inferred predicate: distance ({inferred['distance_km']:.1f} km)")
+        else:
+            st.caption("Inferred predicate: distance (closest)")
+    else:
+        st.caption(f"Inferred predicate: {inferred['mode']}")
+
+    choice = st.radio(
+        "Spatial predicate choice",
+        options=["Use inferred", "Choose manually"],
+        horizontal=True,
+        index=0 if st.session_state["spatial_choice_mode"] == "inferred" else 1,
+        key="spatial_choice_radio",
+        label_visibility="collapsed",
+    )
+    st.session_state["spatial_choice_mode"] = "inferred" if choice == "Use inferred" else "manual"
+
+    if st.session_state["spatial_choice_mode"] == "manual":
+        manual_mode = st.selectbox(
+            "Spatial predicate",
+            options=["exclude", "contain", "intersect", "distance"],
+            index=["exclude", "contain", "intersect", "distance"].index(
+                st.session_state["spatial_manual_mode"]
+            ),
+            key="spatial_manual_mode_select",
+            label_visibility="collapsed",
+        )
+        st.session_state["spatial_manual_mode"] = manual_mode
+        if manual_mode == "distance":
+            st.session_state["spatial_manual_distance_km"] = st.number_input(
+                "Distance (km)",
+                min_value=0.0,
+                value=st.session_state["spatial_manual_distance_km"] or 0.0,
+                step=1.0,
+            )
+        else:
+            st.session_state["spatial_manual_distance_km"] = None
 
     # Initialize session state for generated schema
     if "generated_target_schema" not in st.session_state:
@@ -686,10 +807,7 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                 st.session_state["generated_tuples"],
                 columns=col_names
             )
-            # Render as HTML with scrollable container showing ~5 rows at a time
-            tuples_html = tuples_df.to_html(index=False, table_id="target_table")
-            scrollable_html = f'<div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">{tuples_html}</div>'
-            st.markdown(scrollable_html, unsafe_allow_html=True)
+            st.dataframe(tuples_df, use_container_width=True)
         else:
             # Show empty table with headers only
             empty_df = pd.DataFrame(columns=col_names)
