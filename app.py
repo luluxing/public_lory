@@ -26,6 +26,9 @@ if "input_table_files" not in st.session_state:
 if "chosen_lake" not in st.session_state:
     st.session_state.chosen_lake = None
 
+if "uploaded_csv_files" not in st.session_state:
+    st.session_state.uploaded_csv_files = {}
+
 if "graph_nodes" not in st.session_state:
     st.session_state.graph_nodes = []
 
@@ -61,6 +64,10 @@ if "preview_num_rows" not in st.session_state:
     st.session_state.preview_num_rows = 10
 if "preview_selected_table" not in st.session_state:
     st.session_state.preview_selected_table = None
+if "preview_selected_column" not in st.session_state:
+    st.session_state.preview_selected_column = None
+if "preview_previous_table" not in st.session_state:
+    st.session_state.preview_previous_table = None
 if "graph_equi_joinability_measure" not in st.session_state:
     st.session_state.graph_equi_joinability_measure = 0.0
 if "graph_spatial_predicate" not in st.session_state:
@@ -93,6 +100,7 @@ def reset_state_for_new_lake():
     st.session_state.data_lake = {}
     st.session_state.uploaded_table = None
     st.session_state.input_table_files = []
+    # Note: uploaded_csv_files are preserved when switching lakes
     st.session_state.graph_nodes = []
     st.session_state.graph_rel_edges = []
     st.session_state.graph_spatial_edges = []
@@ -243,12 +251,80 @@ if chosen_lake:
             st.session_state.lake_loaded = True
             st.session_state.lake_loaded_name = chosen_lake
 
+            # Merge uploaded CSV files with lake data
+            if st.session_state.uploaded_csv_files:
+                for table_name, file_info in st.session_state.uploaded_csv_files.items():
+                    st.session_state.data_lake[table_name] = file_info['dataframe']
+
+            total_tables = len(st.session_state.data_lake)
+            lake_tables = total_tables - len(st.session_state.uploaded_csv_files)
             st.success(
-                f"✅ Loaded data lake “{chosen_lake}” "
-                f"({len(st.session_state.data_lake)} tables)."
+                f"✅ Loaded data lake \"{chosen_lake}\" "
+                f"({lake_tables} lake tables, {len(st.session_state.uploaded_csv_files)} uploaded tables)."
             )
         else:
             st.warning("No data-lake directories found under ./datalakes/.")
+
+# Upload CSV files
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Or upload your own CSV files**")
+uploaded_files = st.sidebar.file_uploader(
+    "Upload CSV files",
+    type=['csv'],
+    accept_multiple_files=True,
+    key="csv_file_uploader"
+)
+
+# Process uploaded CSV files
+if uploaded_files:
+    # Track if any new files were added
+    new_files_added = False
+    for uploaded_file in uploaded_files:
+        # Get table name from filename (remove .csv extension)
+        table_name = uploaded_file.name.replace('.csv', '').replace('.CSV', '')
+        
+        # Check if this is a new file or changed file
+        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+        
+        if table_name not in st.session_state.uploaded_csv_files or \
+           st.session_state.uploaded_csv_files[table_name].get('file_id') != file_id:
+            try:
+                uploaded_file.seek(0)
+                df = pd.read_csv(uploaded_file, dtype=str, on_bad_lines='skip')
+                
+                # Store the dataframe and file info
+                st.session_state.uploaded_csv_files[table_name] = {
+                    'dataframe': df,
+                    'file_id': file_id,
+                    'filename': uploaded_file.name
+                }
+                
+                # Add to data_lake (will overwrite if table_name exists)
+                st.session_state.data_lake[table_name] = df
+                new_files_added = True
+            except Exception as e:
+                st.sidebar.error(f"Error reading {uploaded_file.name}: {str(e)}")
+    
+    if new_files_added:
+        uploaded_count = len(st.session_state.uploaded_csv_files)
+        st.sidebar.success(f"✅ Loaded {uploaded_count} uploaded table(s)")
+        # Trigger rerun to update UI
+        st.rerun()
+
+# Clear uploaded files button
+if st.session_state.uploaded_csv_files:
+    if st.sidebar.button("Clear uploaded files", key="clear_uploaded_files"):
+        # Remove uploaded tables from data_lake
+        for table_name in st.session_state.uploaded_csv_files.keys():
+            if table_name in st.session_state.data_lake:
+                del st.session_state.data_lake[table_name]
+        st.session_state.uploaded_csv_files = {}
+        st.rerun()
+
+# Ensure uploaded CSV files are always in data_lake (in case lake was loaded before files were uploaded)
+if st.session_state.uploaded_csv_files:
+    for table_name, file_info in st.session_state.uploaded_csv_files.items():
+        st.session_state.data_lake[table_name] = file_info['dataframe']
 
 def _set_section(name: str):
     st.session_state.selected_section = name
@@ -346,6 +422,7 @@ if st.session_state.data_lake:
             else:
                 st.sidebar.info("No tables available")
                 st.session_state.preview_selected_table = None
+                st.session_state.preview_selected_column = None
         elif st.session_state.selected_section == "graph":
             st.sidebar.markdown("**Data Discovery Graph Parameters**")
             # Equi-Joinability Measure (threshold for join feasibility, 0.0 to 1.0)
