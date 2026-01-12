@@ -41,6 +41,10 @@ if "target_schema_raw" not in st.session_state:
     st.session_state.target_schema_raw = []
 if "user_query_target_attr_input" not in st.session_state:
     st.session_state.user_query_target_attr_input = ""
+if "user_uploaded_table_df" not in st.session_state:
+    st.session_state.user_uploaded_table_df = None
+if "user_uploaded_table_name" not in st.session_state:
+    st.session_state.user_uploaded_table_name = None
 
 if "selected_section" not in st.session_state:
     st.session_state.selected_section = None
@@ -405,16 +409,94 @@ if st.session_state.data_lake:
             pass
         elif st.session_state.selected_section == "user_query":
             st.sidebar.markdown("**User Query Parameters**")
-            st.sidebar.markdown("**Target Attributes**")
             
-            # Option to input attributes or upload file
-            input_method = st.sidebar.radio(
-                "Input method",
-                options=["Text Input", "Upload File"],
-                key="user_query_input_method"
-            )
-            
-            if input_method == "Text Input":
+            # Check if CSV table is uploaded (Scenario 2)
+            if st.session_state.get("user_uploaded_table_df") is not None:
+                # Scenario 2: CSV Upload + Append Attributes
+                st.sidebar.markdown("**Upload CSV Table**")
+                uploaded_csv = st.sidebar.file_uploader(
+                    "Upload CSV file",
+                    type=['csv'],
+                    key="user_query_csv_upload"
+                )
+                if uploaded_csv is not None:
+                    # Check if we've already processed this file
+                    file_id = f"{uploaded_csv.name}_{uploaded_csv.size}"
+                    if "last_processed_csv" not in st.session_state or st.session_state.get("last_processed_csv") != file_id:
+                        try:
+                            uploaded_csv.seek(0)
+                            df = pd.read_csv(uploaded_csv)
+                            st.session_state.user_uploaded_table_df = df
+                            st.session_state.user_uploaded_table_name = uploaded_csv.name.replace('.csv', '')
+                            st.session_state["last_processed_csv"] = file_id
+                            st.sidebar.success(f"Loaded table with {len(df)} rows and {len(df.columns)} columns")
+                            st.rerun()
+                        except Exception as e:
+                            st.sidebar.error(f"Error reading CSV: {str(e)}")
+                    elif st.session_state.user_uploaded_table_df is not None:
+                        st.sidebar.info(f"Table loaded: {len(st.session_state.user_uploaded_table_df)} rows, {len(st.session_state.user_uploaded_table_df.columns)} columns")
+                
+                # Button to clear uploaded table
+                if st.sidebar.button("Clear Uploaded Table", key="clear_uploaded_table", use_container_width=True):
+                    st.session_state.user_uploaded_table_df = None
+                    st.session_state.user_uploaded_table_name = None
+                    st.session_state["last_processed_csv"] = None
+                    st.rerun()
+                
+                st.sidebar.divider()
+                st.sidebar.markdown("**Attributes to Append**")
+                st.session_state.user_query_target_attr_input = st.sidebar.text_area(
+                    "Target attributes to append",
+                    value=st.session_state.user_query_target_attr_input,
+                    placeholder="e.g., hospitals.name, population, distance",
+                    height=100,
+                    key="user_query_scenario2_target_attr_text"
+                )
+                if st.sidebar.button("Add Attributes", key="user_query_scenario2_add_attr", use_container_width=True):
+                    def _clean_attribute_label(value):
+                        value = value.strip()
+                        value = re.sub(r"^(closest|nearest)\s+", "", value, flags=re.IGNORECASE)
+                        return value
+                    
+                    raw_items = [
+                        item.strip()
+                        for item in st.session_state.user_query_target_attr_input.split(",")
+                        if item.strip()
+                    ]
+                    for raw in raw_items:
+                        cleaned = _clean_attribute_label(raw)
+                        if cleaned and cleaned not in st.session_state.target_schema:
+                            st.session_state.target_schema.append(cleaned)
+                            st.session_state.target_schema_raw.append(raw)
+                    st.session_state.user_query_target_attr_input = ""
+                    st.rerun()
+            else:
+                # Scenario 1: Text Input + Bounding Box
+                # Option to upload CSV table (activates Scenario 2)
+                st.sidebar.markdown("**Upload CSV Table** (optional)")
+                uploaded_csv = st.sidebar.file_uploader(
+                    "Upload CSV table file",
+                    type=['csv'],
+                    key="user_query_csv_upload_scenario1"
+                )
+                if uploaded_csv is not None:
+                    # Check if we've already processed this file
+                    file_id = f"{uploaded_csv.name}_{uploaded_csv.size}"
+                    if "last_processed_csv" not in st.session_state or st.session_state.get("last_processed_csv") != file_id:
+                        try:
+                            uploaded_csv.seek(0)
+                            df = pd.read_csv(uploaded_csv)
+                            st.session_state.user_uploaded_table_df = df
+                            st.session_state.user_uploaded_table_name = uploaded_csv.name.replace('.csv', '')
+                            st.session_state["last_processed_csv"] = file_id
+                            st.sidebar.success(f"Loaded table with {len(df)} rows and {len(df.columns)} columns")
+                            st.rerun()
+                        except Exception as e:
+                            st.sidebar.error(f"Error reading CSV: {str(e)}")
+                
+                st.sidebar.divider()
+                st.sidebar.markdown("**Target Attributes**")
+                
                 st.session_state.user_query_target_attr_input = st.sidebar.text_area(
                     "Target attributes",
                     value=st.session_state.user_query_target_attr_input,
@@ -440,50 +522,6 @@ if st.session_state.data_lake:
                             st.session_state.target_schema_raw.append(raw)
                     st.session_state.user_query_target_attr_input = ""
                     st.rerun()
-            else:  # Upload File
-                uploaded_file = st.sidebar.file_uploader(
-                    "Upload attributes file",
-                    type=['txt', 'csv'],
-                    key="user_query_target_attr_file"
-                )
-                if uploaded_file is not None:
-                    # Check if we've already processed this file (using name and size as identifier)
-                    file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-                    if "last_processed_file" not in st.session_state or st.session_state.get("last_processed_file") != file_id:
-                        def _clean_attribute_label(value):
-                            value = value.strip()
-                            value = re.sub(r"^(closest|nearest)\s+", "", value, flags=re.IGNORECASE)
-                            return value
-                        
-                        # Read file content
-                        try:
-                            uploaded_file.seek(0)  # Reset file pointer
-                            if uploaded_file.name.endswith('.csv'):
-                                df = pd.read_csv(uploaded_file)
-                                # Assume attributes are in the first column
-                                raw_items = [str(item).strip() for item in df.iloc[:, 0].dropna() if str(item).strip()]
-                            else:
-                                content = uploaded_file.read().decode('utf-8')
-                                raw_items = [item.strip() for item in content.split('\n') if item.strip()]
-                                # Also try comma-separated if only one line
-                                if len(raw_items) == 1 and ',' in raw_items[0]:
-                                    raw_items = [item.strip() for item in raw_items[0].split(',') if item.strip()]
-                            
-                            # Add to target schema
-                            added_count = 0
-                            for raw in raw_items:
-                                cleaned = _clean_attribute_label(raw)
-                                if cleaned and cleaned not in st.session_state.target_schema:
-                                    st.session_state.target_schema.append(cleaned)
-                                    st.session_state.target_schema_raw.append(raw)
-                                    added_count += 1
-                            
-                            st.session_state["last_processed_file"] = file_id
-                            if added_count > 0:
-                                st.sidebar.success(f"Loaded {added_count} attributes from file")
-                                st.rerun()
-                        except Exception as e:
-                            st.sidebar.error(f"Error reading file: {str(e)}")
             
             st.sidebar.divider()
             st.sidebar.markdown("**Spatial Join Preference**")

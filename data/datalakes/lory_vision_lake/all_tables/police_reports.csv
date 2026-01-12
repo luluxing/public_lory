@@ -1,9 +1,9 @@
-report_id,accident_id,officer_id,status,precinct
-R501,A100,CH-881,closed,Loop
-R502,A101,CH-882,in_review,River North
-R503,A102,CH-883,pending,South Loop
-R504,A103,CH-884,open,West Loop
-R505,A104,CH-885,closed,Pilsen
+report_id,accident_id,officer_id,status,precinct,report_location
+R501,A100,CH-881,closed,Loop,POINT(-87.6278 41.8802)
+R502,A101,CH-882,in_review,River North,POINT(-87.6346 41.8932)
+R503,A102,CH-883,pending,South Loop,POINT(-87.6242 41.8663)
+R504,A103,CH-884,open,West Loop,POINT(-87.6590 41.8822)
+R505,A104,CH-885,closed,Pilsen,POINT(-87.6622 41.8582)
 R506,A105,CH-886,in_review,Chinatown
 R507,A106,CH-887,pending,Bronzeville
 R508,A107,CH-888,open,Hyde Park

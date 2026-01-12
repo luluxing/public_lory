@@ -233,6 +233,7 @@ def generate_joined_tuples(
     tables_list = join_path or list(by_table.keys())
     if len(tables_list) >= 2:
         merged = data_lake[tables_list[0]]
+        joined_any = False
 
         for i in range(1, len(tables_list)):
             next_table = tables_list[i]
@@ -253,6 +254,7 @@ def generate_joined_tuples(
                 )
                 if spatial_joined is not None:
                     merged = spatial_joined
+                    joined_any = True
                     continue
 
             common_cols = list(set(merged.columns) & set(next_df.columns))
@@ -266,7 +268,9 @@ def generate_joined_tuples(
                 how='inner',
                 suffixes=('', '_dup')
             )
-            
+            joined_any = True
+
+        if joined_any:
             # Get column order based on user input order (only column names)
             col_order = []
             seen_cols = set()
@@ -284,7 +288,7 @@ def generate_joined_tuples(
                                 col_order.append(col)
                                 seen_cols.add(col)
                                 break
-            
+
             if col_order:
                 # Filter to only columns that exist
                 col_order = [col for col in col_order if col in merged.columns]
@@ -360,6 +364,8 @@ def find_min_join_path(
     allow_spatial,
     require_spatial,
     max_tables,
+    required_tables=None,
+    table_priorities=None,
 ):
     """
     Find a minimal-table join path covering all matched inputs.
@@ -370,7 +376,11 @@ def find_min_join_path(
         return None
 
     inputs = list(matched_attributes.keys())
-    all_mask = (1 << len(inputs)) - 1
+    required_tables = required_tables or []
+    required_bits = {}
+    for idx, table_name in enumerate(required_tables):
+        required_bits[table_name] = len(inputs) + idx
+    all_mask = (1 << (len(inputs) + len(required_tables))) - 1
 
     table_input_mask = {}
     input_tables = set()
@@ -378,6 +388,10 @@ def find_min_join_path(
         for table_name, _ in matched_attributes[user_input]:
             input_tables.add(table_name)
             table_input_mask[table_name] = table_input_mask.get(table_name, 0) | (1 << idx)
+
+    for table_name, bit_idx in required_bits.items():
+        input_tables.add(table_name)
+        table_input_mask[table_name] = table_input_mask.get(table_name, 0) | (1 << bit_idx)
 
     if not input_tables:
         return None
@@ -401,7 +415,12 @@ def find_min_join_path(
         visited = set()
         prev = {}
 
-        for table in sorted(input_tables):
+        def _priority(table_name):
+            if not table_priorities:
+                return 0
+            return table_priorities.get(table_name, 0)
+
+        for table in sorted(input_tables, key=lambda t: (_priority(t), t)):
             mask = table_input_mask.get(table, 0)
             state = (table, mask, 0, False)
             queue.append((state, 1))
@@ -414,7 +433,10 @@ def find_min_join_path(
             if depth >= max_tables:
                 continue
 
-            for neighbor, edge_type in adjacency.get(table, []):
+            neighbors = adjacency.get(table, [])
+            if table_priorities:
+                neighbors = sorted(neighbors, key=lambda item: (_priority(item[0]), item[0]))
+            for neighbor, edge_type in neighbors:
                 if edge_type == "spatial" and not allow_spatial:
                     continue
                 next_bridge = bridge_count + (0 if neighbor in input_tables else 1)

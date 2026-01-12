@@ -1,4 +1,5 @@
 import json
+import math
 import re
 
 import pandas as pd
@@ -165,6 +166,131 @@ def _filter_table_by_bbox(df, bbox):
     return df, False
 
 
+def _get_lat_lon_series(df):
+    lat_col, lon_col = _find_lat_lon_columns(df)
+    if lat_col and lon_col:
+        lats = pd.to_numeric(df[lat_col], errors="coerce")
+        lons = pd.to_numeric(df[lon_col], errors="coerce")
+        return lats, lons
+
+    spatial_cols = graph_joins._find_spatial_columns(df)
+    for col in spatial_cols:
+        coords = df[col].astype(str).str.extract(
+            r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)",
+            flags=re.IGNORECASE,
+        )
+        if coords.empty:
+            continue
+        lons = pd.to_numeric(coords[0], errors="coerce")
+        lats = pd.to_numeric(coords[1], errors="coerce")
+        return lats, lons
+
+    return None, None
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    lat1_r = math.radians(lat1)
+    lon1_r = math.radians(lon1)
+    lat2_r = math.radians(lat2)
+    lon2_r = math.radians(lon2)
+    dlat = lat2_r - lat1_r
+    dlon = lon2_r - lon1_r
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    return r * c
+
+
+def _collect_join_paths(
+    input_tables,
+    rel_edges,
+    spatial_edges,
+    allow_spatial,
+    require_spatial,
+    max_paths=5,
+    max_len=6,
+):
+    if not input_tables:
+        return []
+
+    adjacency = {}
+
+    def _add_edge(left, right, edge_type):
+        adjacency.setdefault(left, []).append((right, edge_type))
+        adjacency.setdefault(right, []).append((left, edge_type))
+
+    for left, right, _ in rel_edges or []:
+        _add_edge(left, right, "relation")
+    if allow_spatial:
+        for left, right, _ in spatial_edges or []:
+            _add_edge(left, right, "spatial")
+
+    input_tables = set(input_tables)
+    max_len = max(max_len, len(input_tables))
+    paths = set()
+
+    def _dfs(current, path, has_spatial):
+        if len(paths) >= max_paths:
+            return
+        if input_tables.issubset(path) and (not require_spatial or has_spatial):
+            paths.add(tuple(path))
+        if len(path) >= max_len:
+            return
+        for neighbor, edge_type in adjacency.get(current, []):
+            if neighbor in path:
+                continue
+            _dfs(neighbor, path + [neighbor], has_spatial or edge_type == "spatial")
+            if len(paths) >= max_paths:
+                return
+
+    for start in sorted(input_tables):
+        _dfs(start, [start], False)
+        if len(paths) >= max_paths:
+            break
+
+    return sorted(paths, key=lambda p: (len(p), p))
+
+
+def _spatial_nearest_join(left_df, right_df, right_cols, spatial_distance_km=None):
+    left_lats, left_lons = _get_lat_lon_series(left_df)
+    right_lats, right_lons = _get_lat_lon_series(right_df)
+    if left_lats is None or right_lats is None:
+        return None
+
+    right_points = []
+    for idx in right_df.index:
+        lat = right_lats.loc[idx]
+        lon = right_lons.loc[idx]
+        if pd.isna(lat) or pd.isna(lon):
+            continue
+        right_points.append((idx, float(lat), float(lon)))
+
+    if not right_points:
+        return None
+
+    rows = []
+    for idx in left_df.index:
+        lat = left_lats.loc[idx]
+        lon = left_lons.loc[idx]
+        if pd.isna(lat) or pd.isna(lon):
+            rows.append([None] * len(right_cols))
+            continue
+        best_idx = None
+        best_dist = None
+        for r_idx, r_lat, r_lon in right_points:
+            dist = _haversine_km(lat, lon, r_lat, r_lon)
+            if best_dist is None or dist < best_dist:
+                best_dist = dist
+                best_idx = r_idx
+        if best_idx is None or (spatial_distance_km is not None and best_dist > spatial_distance_km):
+            rows.append([None] * len(right_cols))
+        else:
+            rows.append(right_df.loc[best_idx, right_cols].tolist())
+
+    right_joined = pd.DataFrame(rows, columns=right_cols, index=left_df.index)
+    return pd.concat([left_df, right_joined], axis=1)
+
+
 def _data_lake_has_spatial(data_lake):
     for _, df in data_lake.items():
         lat_col, lon_col = _find_lat_lon_columns(df)
@@ -319,7 +445,469 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
         st.session_state["graph_spatial_edges"] = []
     if "target_schema_raw" not in st.session_state:
         st.session_state["target_schema_raw"] = []
+    
+    # Check if CSV table is uploaded (Scenario 2)
+    if st.session_state.get("user_uploaded_table_df") is not None:
+        # Scenario 2: CSV Upload + Append Attributes
+        uploaded_df = st.session_state.user_uploaded_table_df
+        uploaded_table_name = st.session_state.get("user_uploaded_table_name", "uploaded_table")
+        
+        st.markdown("**Uploaded Table:**")
+        st.dataframe(uploaded_df, use_container_width=True, height=300)
+        
+        st.markdown("**Step 1: Please select your area of interest (draw a bounding box on the map)**")
+        existing = st.session_state.get("bbox_selection", [39.9, -86.3, 40.1, -86.1])
+        center_lat = (existing[0] + existing[2]) / 2
+        center_lon = (existing[1] + existing[3]) / 2
 
+        m = leafmap.Map(
+            center=[center_lat, center_lon],
+            zoom=6,
+            draw_control=True,
+            measure_control=False,
+            fullscreen_control=False,
+            locate_control=False,
+        )
+        m.add_basemap("OpenStreetMap")
+
+        st_map = m.to_streamlit(height=700, bidirectional=True)
+        new_bbox = None
+        if st_map:
+            last_draw = m.st_last_draw(st_map)
+            new_bbox = _bbox_from_geojson_feature(last_draw)
+            if not new_bbox:
+                drawings = m.st_draw_features(st_map) or []
+                for feat in reversed(drawings):
+                    new_bbox = _bbox_from_geojson_feature(feat)
+                    if new_bbox:
+                        break
+
+        if new_bbox:
+            st.session_state["bbox_selection"] = new_bbox
+            bbox_label = (
+                f"{new_bbox[0]:.4f}, {new_bbox[1]:.4f}, "
+                f"{new_bbox[2]:.4f}, {new_bbox[3]:.4f}"
+            )
+            st.success(f"Selected rectangle: {bbox_label}")
+        else:
+            bbox_label = (
+                f"{existing[0]:.4f}, {existing[1]:.4f}, "
+                f"{existing[2]:.4f}, {existing[3]:.4f}"
+            )
+            st.caption(f"Current bbox: {bbox_label} (draw a rectangle to update)")
+        
+        st.markdown("**Attributes to append:**")
+        if st.session_state.target_schema:
+            attrs = st.session_state.target_schema.copy()
+            to_remove = []
+            for attr in attrs:
+                row = st.columns([1, 20])
+                with row[0]:
+                    if st.button("✕", key=f"scenario2_remove_attr_{attr}", help="Remove", use_container_width=True):
+                        to_remove.append(attr)
+                with row[1]:
+                    st.markdown(
+                        f"""
+                        <div style="padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:0.95rem;background:#f7f9fc;display:inline-flex;align-items:center;white-space:nowrap;height:32px;line-height:1;">
+                          {attr}
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+            if to_remove:
+                remaining = []
+                remaining_raw = []
+                for idx, value in enumerate(st.session_state.target_schema):
+                    if value in to_remove:
+                        continue
+                    remaining.append(value)
+                    if idx < len(st.session_state.target_schema_raw):
+                        remaining_raw.append(st.session_state.target_schema_raw[idx])
+                st.session_state.target_schema = remaining
+                st.session_state.target_schema_raw = remaining_raw
+                st.rerun()
+        else:
+            st.write("*No attributes selected yet. Please add attributes in the sidebar.*")
+        
+        # Initialize session state for scenario 2 results
+        if "scenario2_augmented_tables" not in st.session_state:
+            st.session_state["scenario2_augmented_tables"] = []
+        if "scenario2_join_paths" not in st.session_state:
+            st.session_state["scenario2_join_paths"] = []
+        
+        # Generate augmented table button
+        if st.button("Generate Augmented Table", key="scenario2_generate_button"):
+            if not st.session_state.target_schema:
+                st.warning("Please add at least one target attribute first.")
+            else:
+                # Add uploaded table to data lake temporarily for join path finding
+                temp_data_lake = st.session_state.data_lake.copy()
+                temp_data_lake[uploaded_table_name] = uploaded_df
+                
+                # Match attributes
+                matched_attributes = {}
+                unmatched = []
+                for user_input in st.session_state.target_schema:
+                    matches = fuzzy_match_attribute(user_input, temp_data_lake)
+                    if matches:
+                        matched_attributes[user_input] = matches
+                    else:
+                        unmatched.append(user_input)
+                
+                if unmatched:
+                    st.warning(f"Could not match the following attributes: {', '.join(unmatched)}")
+                
+                if matched_attributes:
+                    # Get spatial preferences
+                    spatial_valid = True
+                    if st.session_state.get("spatial_choice_mode", "inferred") == "inferred":
+                        inferred_inputs = st.session_state.target_schema_raw or st.session_state.target_schema
+                        inferred = infer_spatial_preferences(inferred_inputs)
+                        spatial_mode = inferred["mode"]
+                        spatial_distance_km = inferred["distance_km"]
+                        spatial_source = "inferred"
+                    else:
+                        manual_mode = st.session_state.get("spatial_manual_mode", "exclude")
+                        if manual_mode == "exclude":
+                            spatial_mode = None
+                            spatial_distance_km = None
+                            spatial_source = "manual"
+                        elif manual_mode == "distance":
+                            distance_km = st.session_state.get("spatial_manual_distance_km")
+                            if not distance_km or distance_km <= 0:
+                                st.warning("Please enter a positive distance (km) for the spatial predicate.")
+                                spatial_valid = False
+                            spatial_mode = "distance"
+                            spatial_distance_km = distance_km
+                            spatial_source = "manual"
+                        else:
+                            spatial_mode = manual_mode
+                            spatial_distance_km = None
+                            spatial_source = "manual"
+                    
+                    if not spatial_valid:
+                        return
+                    
+                    # Get edges
+                    rel_edges = st.session_state.get("graph_rel_edges")
+                    spatial_edges = st.session_state.get("graph_spatial_edges")
+                    if not rel_edges:
+                        rel_edges = graph_joins.find_relational_joins(temp_data_lake)
+                        st.session_state["graph_rel_edges"] = rel_edges
+                    if not spatial_edges:
+                        spatial_edges = graph_joins.find_spatial_joins(temp_data_lake)
+                        st.session_state["graph_spatial_edges"] = spatial_edges
+                    
+                    allow_spatial = spatial_mode is not None
+                    require_spatial = spatial_mode is not None
+
+                    uploaded_tokens = set()
+                    for col in uploaded_df.columns:
+                        parts = re.split(r"[^a-zA-Z0-9]+", str(col).lower())
+                        for part in parts:
+                            if len(part) >= 3:
+                                uploaded_tokens.add(part)
+                    table_priorities = {}
+                    for table_name, df in temp_data_lake.items():
+                        if table_name == uploaded_table_name:
+                            table_priorities[table_name] = 0
+                            continue
+                        name_lower = table_name.lower()
+                        if any(token in name_lower for token in uploaded_tokens):
+                            table_priorities[table_name] = 1
+                            continue
+                        shared_cols = set(uploaded_df.columns) & set(df.columns)
+                        if shared_cols:
+                            table_priorities[table_name] = 2
+                        else:
+                            table_priorities[table_name] = 5
+                    
+                    # Find join paths
+                    path_info = find_min_join_path(
+                        matched_attributes,
+                        rel_edges,
+                        spatial_edges,
+                        allow_spatial=allow_spatial,
+                        require_spatial=require_spatial,
+                        max_tables=len(temp_data_lake),
+                        required_tables=[uploaded_table_name],
+                        table_priorities=table_priorities,
+                    )
+                    
+                    if path_info:
+                        # Ensure the path starts with the uploaded table
+                        path_tables = path_info["tables"].copy()
+                        
+                        # Generate augmented table
+                        bbox = st.session_state.get("bbox_selection")
+                        filtered_data_lake = temp_data_lake
+                        
+                        if bbox:
+                            # Filter by bbox if spatial data exists
+                            filtered_data_lake = {}
+                            for name, df in temp_data_lake.items():
+                                filtered_df, _ = _filter_table_by_bbox(df, bbox)
+                                filtered_data_lake[name] = filtered_df
+                        
+                        # Generate augmented table by joining along the path
+                        # Start with uploaded table (preserve all original columns)
+                        result_df = filtered_data_lake.get(uploaded_table_name, uploaded_df).copy()
+                        
+                        # Get columns to add from matched attributes (only from tables in path, not uploaded table)
+                        # Map user_input -> (table_name, col_name) for renaming later
+                        user_input_to_column = {}  # Maps user_input -> actual (table_name, col_name)
+                        columns_to_add = {}  # Maps table_name -> list of col_names to add
+                        for user_input, matches in matched_attributes.items():
+                            # Use the first match for each user input
+                            for table_name, col_name in matches:
+                                if table_name in path_tables and table_name != uploaded_table_name:
+                                    user_input_to_column[user_input] = (table_name, col_name)
+                                    if table_name not in columns_to_add:
+                                        columns_to_add[table_name] = []
+                                    if col_name not in columns_to_add[table_name]:
+                                        columns_to_add[table_name].append(col_name)
+                                    break  # Use first match
+                        
+                        # Store original uploaded columns to ensure they're preserved
+                        original_uploaded_columns = list(result_df.columns)
+
+                        def _get_edge_between(path_info, left, right):
+                            for edge in path_info.get("edges", []):
+                                if (edge.get("from") == left and edge.get("to") == right) or \
+                                   (edge.get("from") == right and edge.get("to") == left):
+                                    return edge
+                            return None
+
+                        link_cols_by_table = {table: set() for table in path_tables}
+                        for i in range(1, len(path_tables)):
+                            left = path_tables[i - 1]
+                            right = path_tables[i]
+                            edge = _get_edge_between(path_info, left, right)
+                            edge_type = edge.get("type") if edge else None
+                            if edge_type != "relation":
+                                continue
+                            attrs = []
+                            if edge and edge.get("attributes"):
+                                attrs_str = edge["attributes"]
+                                if isinstance(attrs_str, str):
+                                    attrs = [a.strip() for a in attrs_str.split(",")]
+                                else:
+                                    attrs = [attrs_str]
+                            if attrs:
+                                link_cols_by_table[left].update(attrs)
+                                link_cols_by_table[right].update(attrs)
+                                continue
+                            left_df = filtered_data_lake.get(left)
+                            right_df = filtered_data_lake.get(right)
+                            if left_df is not None and right_df is not None:
+                                common = set(left_df.columns) & set(right_df.columns)
+                                link_cols_by_table[left].update(common)
+                                link_cols_by_table[right].update(common)
+
+                        def _apply_join(result_df, prev_table, table_name):
+                            if table_name not in filtered_data_lake:
+                                return result_df
+                            next_df = filtered_data_lake[table_name]
+                            edge = _get_edge_between(path_info, prev_table, table_name)
+                            edge_type = edge.get("type") if edge else None
+                            requested_cols = columns_to_add.get(table_name, [])
+                            link_cols = sorted(link_cols_by_table.get(table_name, set()))
+                            requested_cols = [
+                                col for col in (requested_cols + link_cols)
+                                if col in next_df.columns and col not in result_df.columns
+                            ]
+
+                            if edge_type == "spatial":
+                                if requested_cols:
+                                    spatial_distance = None
+                                    if spatial_mode == "distance":
+                                        spatial_distance = spatial_distance_km
+                                    spatial_joined = _spatial_nearest_join(
+                                        result_df,
+                                        next_df,
+                                        requested_cols,
+                                        spatial_distance_km=spatial_distance,
+                                    )
+                                    if spatial_joined is not None:
+                                        return spatial_joined
+                                return result_df
+
+                            # Relational join: try edge attributes then common columns.
+                            join_col = None
+                            if edge and edge.get("attributes"):
+                                attrs_str = edge["attributes"]
+                                if isinstance(attrs_str, str):
+                                    attrs = [a.strip() for a in attrs_str.split(",")]
+                                else:
+                                    attrs = [attrs_str]
+                                for attr in attrs:
+                                    if attr in result_df.columns and attr in next_df.columns:
+                                        join_col = attr
+                                        break
+
+                            if not join_col:
+                                common_cols = list(set(result_df.columns) & set(next_df.columns))
+                                if common_cols:
+                                    join_col = common_cols[0]
+
+                            if join_col:
+                                left_spatial_cols = set(graph_joins._find_spatial_columns(result_df))
+                                right_spatial_cols = set(graph_joins._find_spatial_columns(next_df))
+                                if join_col in left_spatial_cols and join_col in right_spatial_cols:
+                                    def _normalize_point_series(series):
+                                        coords = series.astype(str).str.extract(
+                                            r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)",
+                                            flags=re.IGNORECASE,
+                                        )
+                                        if coords.empty:
+                                            return None
+                                        lons = pd.to_numeric(coords[0], errors="coerce")
+                                        lats = pd.to_numeric(coords[1], errors="coerce")
+                                        return lons.round(4).astype(str) + "," + lats.round(4).astype(str)
+
+                                    left_norm = _normalize_point_series(result_df[join_col])
+                                    right_norm = _normalize_point_series(next_df[join_col])
+                                    if left_norm is not None and right_norm is not None:
+                                        left_key = "__join_location_norm__"
+                                        right_key = "__join_location_norm__"
+                                        left_tmp = result_df.copy()
+                                        right_tmp = next_df.copy()
+                                        left_tmp[left_key] = left_norm
+                                        right_tmp[right_key] = right_norm
+                                        cols_to_include = [right_key]
+                                        for col in requested_cols:
+                                            if col not in cols_to_include:
+                                                cols_to_include.append(col)
+                                        return pd.merge(
+                                            left_tmp,
+                                            right_tmp[cols_to_include],
+                                            left_on=left_key,
+                                            right_on=right_key,
+                                            how='left',
+                                            suffixes=('', '_dup')
+                                        ).drop(columns=[left_key, right_key], errors="ignore")
+
+                                cols_to_include = [join_col]
+                                for col in requested_cols:
+                                    if col not in cols_to_include:
+                                        cols_to_include.append(col)
+                                cols_to_include = [
+                                    col for col in cols_to_include
+                                    if col not in result_df.columns or col == join_col
+                                ]
+                                if len(cols_to_include) > 1:
+                                    return pd.merge(
+                                        result_df,
+                                        next_df[cols_to_include],
+                                        on=join_col,
+                                        how='left',
+                                        suffixes=('', '_dup')
+                                    )
+
+                            # Fallback to spatial if no relational join is possible.
+                            if requested_cols and _table_has_spatial(result_df) and _table_has_spatial(next_df):
+                                spatial_distance = None
+                                if spatial_mode == "distance":
+                                    spatial_distance = spatial_distance_km
+                                spatial_joined = _spatial_nearest_join(
+                                    result_df,
+                                    next_df,
+                                    requested_cols,
+                                    spatial_distance_km=spatial_distance,
+                                )
+                                if spatial_joined is not None:
+                                    return spatial_joined
+
+                            return result_df
+                        
+                        # Join along the path sequentially
+                        # Find the position of uploaded_table_name in path_tables
+                        if uploaded_table_name in path_tables:
+                            upload_idx = path_tables.index(uploaded_table_name)
+                            # Join tables before the uploaded table (walk backwards).
+                            for i in range(upload_idx - 1, -1, -1):
+                                result_df = _apply_join(result_df, path_tables[i + 1], path_tables[i])
+                            # Join tables after the uploaded table (walk forwards).
+                            for i in range(upload_idx + 1, len(path_tables)):
+                                result_df = _apply_join(result_df, path_tables[i - 1], path_tables[i])
+                        else:
+                            if path_tables:
+                                path_tables = [uploaded_table_name] + path_tables
+                                for i in range(1, len(path_tables)):
+                                    result_df = _apply_join(result_df, path_tables[i - 1], path_tables[i])
+                        
+                        # Rename appended columns to match user input names
+                        rename_dict = {}
+                        for user_input, (table_name, col_name) in user_input_to_column.items():
+                            if col_name in result_df.columns:
+                                # Rename the actual column name to the user's input name
+                                rename_dict[col_name] = user_input
+                        
+                        result_df = result_df.rename(columns=rename_dict)
+                        
+                        # Select only original uploaded columns + user-requested attribute columns
+                        # (in case there are intermediate columns from joins)
+                        columns_to_keep = original_uploaded_columns.copy()
+                        for user_input in user_input_to_column.keys():
+                            if user_input in result_df.columns and user_input not in columns_to_keep:
+                                columns_to_keep.append(user_input)
+                        
+                        # Reorder columns: original uploaded columns first, then appended attributes (in user input order)
+                        result_df = result_df[columns_to_keep]
+                        
+                        # Store results in Scenario 2 format
+                        st.session_state["scenario2_augmented_tables"] = [result_df]
+                        st.session_state["scenario2_join_paths"] = [path_tables]
+                        st.session_state["scenario2_path_info"] = [path_info]
+                        appended_cols = [col for col in columns_to_keep if col not in original_uploaded_columns]
+                        null_counts = {}
+                        if appended_cols:
+                            null_counts = result_df[appended_cols].isna().sum().to_dict()
+                        st.session_state["scenario2_debug_info"] = {
+                            "matched_attributes": matched_attributes,
+                            "path_tables": path_tables,
+                            "path_edges": path_info.get("edges", []),
+                            "columns_to_add": columns_to_add,
+                            "user_input_to_column": user_input_to_column,
+                            "appended_columns": appended_cols,
+                            "null_counts": null_counts,
+                            "spatial_mode": spatial_mode,
+                            "spatial_distance_km": spatial_distance_km,
+                            "bbox_selection": bbox,
+                        }
+                        
+                        # Also store in Scenario 1 format for consistent display
+                        st.session_state["generated_join_path"] = path_info
+                        st.session_state["generated_join_path_edges"] = path_info.get("edges", [])
+                        st.session_state["generated_join_path_tables"] = path_tables
+                        st.session_state["generated_tables_used"] = path_tables
+                        st.session_state["user_query_active_data_lake"] = filtered_data_lake
+                    else:
+                        st.info("No join path found for the selected attributes.")
+                        st.session_state["scenario2_augmented_tables"] = []
+                        st.session_state["scenario2_join_paths"] = []
+        
+        # Display augmented table (same format as Scenario 1)
+        if st.session_state.get("scenario2_augmented_tables"):
+            augmented_tables = st.session_state["scenario2_augmented_tables"]
+            join_paths = st.session_state["scenario2_join_paths"]
+            
+            # Show target table (same format as Scenario 1)
+            if augmented_tables:
+                aug_df = augmented_tables[0]  # Show first augmented table
+                path_tables = join_paths[0] if join_paths else []
+                
+                st.markdown("**Target table:**")
+                # Render as HTML with scrollable container (same as Scenario 1)
+                tuples_html = aug_df.to_html(index=False, table_id="target_table")
+                scrollable_html = f'<div style="max-height: 300px; overflow-y: auto;">{tuples_html}</div>'
+                st.markdown(scrollable_html, unsafe_allow_html=True)
+                
+            _render_join_path_and_map(west_lafayette_bbox, lafayette_default_bbox)
+        
+        return  # Exit early for scenario 2
+
+    # Scenario 1: Original implementation (no CSV uploaded)
     st.markdown("**Step 1: Please select your area of interest (draw a bounding box on the map)**")
     existing = st.session_state.get("bbox_selection", [39.9, -86.3, 40.1, -86.1])
     center_lat = (existing[0] + existing[2]) / 2
@@ -579,6 +1167,26 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                     st.session_state["generated_spatial_distance_km"] = spatial_distance_km
                     st.session_state["generated_spatial_source"] = spatial_source
                     st.session_state["generated_tables_used"] = path_info["tables"]
+                    input_tables = {
+                        table for matches in matched_attributes.values() for table, _ in matches
+                    }
+                    candidate_paths = _collect_join_paths(
+                        input_tables,
+                        rel_edges,
+                        spatial_edges,
+                        allow_spatial=allow_spatial,
+                        require_spatial=require_spatial,
+                        max_paths=6,
+                        max_len=min(6, len(st.session_state.data_lake)),
+                    )
+                    primary_path = tuple(path_info["tables"])
+                    if primary_path in candidate_paths:
+                        candidate_paths = [primary_path] + [
+                            path for path in candidate_paths if path != primary_path
+                        ]
+                    else:
+                        candidate_paths = [primary_path] + candidate_paths
+                    st.session_state["generated_join_paths_tables"] = candidate_paths
 
                 # Generate joined tuples
                 bbox = st.session_state.get("bbox_selection")
@@ -688,19 +1296,24 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
             )
             # Render as HTML with scrollable container showing ~5 rows at a time
             tuples_html = tuples_df.to_html(index=False, table_id="target_table")
-            scrollable_html = f'<div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">{tuples_html}</div>'
+            scrollable_html = f'<div style="max-height: 300px; overflow-y: auto;">{tuples_html}</div>'
             st.markdown(scrollable_html, unsafe_allow_html=True)
         else:
             # Show empty table with headers only
             empty_df = pd.DataFrame(columns=col_names)
             st.dataframe(empty_df, use_container_width=True)
         
-        if st.session_state.get("generated_tables_used"):
-            tables_used = ", ".join(st.session_state["generated_tables_used"])
-            st.caption(f"Tables used: {tables_used}")
+    st.session_state["user_query_active_data_lake"] = st.session_state.data_lake
+    _render_join_path_and_map(west_lafayette_bbox, lafayette_default_bbox)
 
+
+def _render_join_path_and_map(west_lafayette_bbox, lafayette_default_bbox):
     path_tables = st.session_state.get("generated_join_path_tables", [])
-    if path_tables:
+    path_tables_list = st.session_state.get("generated_join_paths_tables", [])
+    if path_tables_list:
+        st.session_state["user_query_paths"] = [" → ".join(path) for path in path_tables_list]
+        st.session_state["user_query_parsed_paths"] = [list(path) for path in path_tables_list]
+    elif path_tables:
         path_str = " → ".join(path_tables)
         st.session_state["user_query_paths"] = [path_str]
         st.session_state["user_query_parsed_paths"] = [path_tables]
@@ -712,6 +1325,7 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
         st.session_state["selected_user_query_path_for_map"] = None
 
     parsed_paths = st.session_state.get("user_query_parsed_paths", [])
+    active_data_lake = st.session_state.get("user_query_active_data_lake", st.session_state.data_lake)
 
     if "user_query_parsed_paths" in st.session_state:
         def get_join_info_user_query(table1, table2):
@@ -729,8 +1343,8 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
             return {"type": "relation", "attributes": ""}
 
         table_metadata = {}
-        for table_name in st.session_state.data_lake.keys():
-            df = st.session_state.data_lake[table_name]
+        for table_name in active_data_lake.keys():
+            df = active_data_lake[table_name]
             table_metadata[table_name] = {
                 "columns": list(df.columns),
                 "cardinality": len(df),
@@ -756,10 +1370,10 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                     }
 
                     for i in range(len(path) - 1):
-                        join_info = get_join_info_user_query(path[i], path[i+1])
+                        join_info = get_join_info_user_query(path[i], path[i + 1])
                         path_data["joins"].append({
                             "from": path[i],
-                            "to": path[i+1],
+                            "to": path[i + 1],
                             "attributes": join_info["attributes"],
                             "type": join_info["type"]
                         })
@@ -782,7 +1396,7 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                         tableNode.textContent = table;
                         tableNode.style.cssText = 'padding: 8px 12px; background: #fff; border: 2px solid #1e88e5; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;';
                         
-                        const tableInfo = tableMetadata[table];
+                        const tableInfo = tableMetadata[table] || {{columns: [], cardinality: 0, num_columns: 0}};
                         const tooltip = document.createElement('div');
                         tooltip.style.cssText = 'position: absolute; background: rgba(0,0,0,0.9); color: white; padding: 10px; border-radius: 6px; font-size: 12px; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity 0.2s; max-width: 300px;';
                         tooltip.innerHTML = `<strong>${{table}}</strong><br/>Cardinality: ${{tableInfo.cardinality}}<br/>Columns: ${{tableInfo.num_columns}}<br/><small>${{tableInfo.columns.slice(0, 5).join(', ')}}${{tableInfo.columns.length > 5 ? '...' : ''}}</small>`;
@@ -843,9 +1457,8 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
 
                     if st.button("Show on the map", key=f"show_user_query_path_{idx}"):
                         st.session_state["selected_user_query_path_for_map"] = idx
-                        # Compute tight bounding box from points in the path
                         path = parsed_paths[idx - 1] if idx - 1 < len(parsed_paths) else []
-                        computed_bbox = _compute_bbox_from_path(path, st.session_state.data_lake)
+                        computed_bbox = _compute_bbox_from_path(path, active_data_lake)
                         if computed_bbox:
                             st.session_state.user_query_path_map_selections[f"user_query_path_{idx}"] = {
                                 "bbox": computed_bbox,
@@ -853,7 +1466,6 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                                 "method": "spatial_coordinates"
                             }
                         else:
-                            # Fallback to default if no spatial data found
                             st.session_state.user_query_path_map_selections[f"user_query_path_{idx}"] = {
                                 "bbox": west_lafayette_bbox,
                                 "region_name": "Path Region",
@@ -864,14 +1476,12 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
         with col_map:
             st.markdown("**Map View**")
             map_height = 700
-            # Inject CSS to set iframe height for this map
             st.markdown(
                 f'<style>div[data-testid="stHtml"] iframe[src*="folium"]{{height:{map_height}px!important;min-height:{map_height}px!important;max-height:{map_height}px!important;}}</style>',
                 unsafe_allow_html=True,
             )
 
             selected_path_idx = st.session_state.get("selected_user_query_path_for_map")
-
             path_region_info = None
             path_map_bbox = None
 
@@ -886,23 +1496,18 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                     else:
                         path_map_bbox = stored_info
                 else:
-                    # Fallback to bbox_selection if no stored info
                     path_map_bbox = st.session_state.get("bbox_selection")
             else:
                 path_map_bbox = None
 
-            # Use bbox_selection (drawn bounding box) for filtering points
             bbox_for_filtering = st.session_state.get("bbox_selection")
             
-            # Calculate center and zoom based on the bounding box
             if path_map_bbox:
                 center_lat = (path_map_bbox[0] + path_map_bbox[2]) / 2
                 center_lon = (path_map_bbox[1] + path_map_bbox[3]) / 2
-                # Calculate appropriate zoom level based on bbox size
                 lat_range = path_map_bbox[2] - path_map_bbox[0]
                 lon_range = path_map_bbox[3] - path_map_bbox[1]
                 max_range = max(lat_range, lon_range)
-                # Adjust zoom based on bbox size (smaller bbox = higher zoom)
                 if max_range < 0.1:
                     zoom_level = 13
                 elif max_range < 0.5:
@@ -936,12 +1541,10 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                     tooltip=f"Path {selected_path_idx} bounding box"
                 ).add_to(m_path)
                 
-                # Plot points from tables in the path
                 if selected_path_idx and parsed_paths:
                     path = parsed_paths[selected_path_idx - 1] if selected_path_idx - 1 < len(parsed_paths) else []
-                    points = _extract_points_from_path(path, st.session_state.data_lake, max_points_per_table=200)
+                    points = _extract_points_from_path(path, active_data_lake, max_points_per_table=200)
                     
-                    # Group points by table for color coding
                     table_colors = {}
                     colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred', 'lightred', 'beige', 
                              'darkblue', 'darkgreen', 'cadetblue', 'darkpurple', 'white', 'pink', 'lightblue', 
@@ -949,12 +1552,9 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                     for idx, table_name in enumerate(path):
                         table_colors[table_name] = colors[idx % len(colors)]
                     
-                    # Plot points with different colors for each table
-                    # Filter by bbox_selection (the drawn bounding box)
                     if bbox_for_filtering:
                         margin = 0.01
                         for lat, lon, table_name in points:
-                            # Check if point is within bounding box (with small margin)
                             if (bbox_for_filtering[0] - margin <= lat <= bbox_for_filtering[2] + margin and 
                                 bbox_for_filtering[1] - margin <= lon <= bbox_for_filtering[3] + margin):
                                 color = table_colors.get(table_name, 'blue')
@@ -969,7 +1569,6 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                                     weight=1
                                 ).add_to(m_path)
                     else:
-                        # If no bbox_selection, plot all points
                         for lat, lon, table_name in points:
                             color = table_colors.get(table_name, 'blue')
                             folium.CircleMarker(
@@ -983,19 +1582,15 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                                 weight=1
                             ).add_to(m_path)
 
-            # Use st_folium if available for better height control, otherwise use components.html
             if HAS_ST_FOLIUM:
                 st_folium(m_path, width=None, height=map_height, returned_objects=[])
             else:
                 map_html = m_path._repr_html_()
-                # Modify folium HTML to set map div height
-                # Replace height in map div style
                 map_html = re.sub(
                     r'(<div[^>]*id="[^"]*map[^"]*"[^>]*style="[^"]*height:\s*)\d+px',
                     lambda m: m.group(1) + f"{map_height}px",
                     map_html,
                 )
-                # Add height to style if not present
                 if 'id="map' in map_html:
                     if 'style=' in map_html:
                         map_html = re.sub(
@@ -1011,9 +1606,8 @@ def render_user_query_section(west_lafayette_bbox, lafayette_default_bbox):
                         )
 
                 components.html(map_html, height=map_height)
-                # Add JavaScript to force resize after component renders
                 st.markdown(
-                    f'<script>(function(){{function forceResize(){{var iframes=document.querySelectorAll("iframe");iframes.forEach(function(iframe){{iframe.style.setProperty("height","{map_height}px","important");iframe.style.setProperty("min-height","{map_height}px","important");iframe.style.setProperty("max-height","{map_height}px","important");iframe.setAttribute("height","{map_height}");}});}}forceResize();setTimeout(forceResize,100);setTimeout(forceResize,500);setTimeout(forceResize,1000);setTimeout(forceResize,2000);var observer=new MutationObserver(forceResize);observer.observe(document.body,{{childList:true,subtree:true}});}})();</script>',
+                    f'<script>(function(){{function forceResize(){{var iframes=document.querySelectorAll(\"iframe\");iframes.forEach(function(iframe){{iframe.style.setProperty(\"height\",\"{map_height}px\",\"important\");iframe.style.setProperty(\"min-height\",\"{map_height}px\",\"important\");iframe.style.setProperty(\"max-height\",\"{map_height}px\",\"important\");iframe.setAttribute(\"height\",\"{map_height}\");}});}}forceResize();setTimeout(forceResize,100);setTimeout(forceResize,500);setTimeout(forceResize,1000);setTimeout(forceResize,2000);var observer=new MutationObserver(forceResize);observer.observe(document.body,{{childList:true,subtree:true}});}})();</script>',
                     unsafe_allow_html=True,
                 )
 
