@@ -1,0 +1,11 @@
+hospital_id,name,address,zipcode,city,state,country,trauma_level
+H900,Mercy Hospital,2525 S Michigan Ave,60616,Chicago,IL,US,I
+H901,Northwestern Memorial,251 E Huron St,60611,Chicago,IL,US,I
+H902,Rush University Medical Center,1653 W Congress Pkwy,60612,Chicago,IL,US,I
+H903,St. Mary Medical,2233 W Division St,60622,Chicago,IL,US,II
+H904,UChicago Medicine,5841 S Maryland Ave,60637,Chicago,IL,US,I
+H905,Mount Sinai,1500 S Fairfield Ave,60608,Chicago,IL,US,II
+H906,West Suburban,3 Erie Ct,60302,Oak Park,IL,US,II
+H907,Swedish Hospital,5145 N California Ave,60625,Chicago,IL,US,II
+H908,Provident Hospital,500 E 51st St,60615,Chicago,IL,US,II
+H909,Saint Francis Evanston,355 Ridge Ave,60202,Evanston,IL,US,II

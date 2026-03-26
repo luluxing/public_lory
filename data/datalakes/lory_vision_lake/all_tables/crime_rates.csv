@@ -1,0 +1,7 @@
+area_id,neighborhood,zipcode,crime_rate_index,year
+CR01,Loop,60602,82,2025
+CR02,River North,60654,76,2025
+CR03,Pilsen,60608,64,2025
+CR04,West Loop,60607,58,2025
+CR05,Uptown,60640,71,2025
+CR06,Englewood,60621,90,2025

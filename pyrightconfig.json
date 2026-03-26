@@ -1,0 +1,9 @@
+{
+  "exclude": [
+    "data",
+    ".vscode",
+    "__pycache__",
+    "env"
+  ],
+  "typeCheckingMode": "off"
+}

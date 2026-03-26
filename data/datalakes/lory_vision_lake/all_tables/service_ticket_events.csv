@@ -1,0 +1,10 @@
+event_id,ticket_id,event_type,notes,Precinct
+E2000,T1000,created,Ticket created,Loop
+E2001,T1000,assigned,Technician assigned,Loop
+E2002,T1000,closed,Issue resolved,Loop
+E2003,T1001,created,Inspection requested,River North
+E2004,T1001,sent_followup,Follow-up scheduled,River North
+E2005,T1002,created,Maintenance started,South Loop
+E2006,T1003,created,Closure announced,West Loop
+E2007,T1004,created,Customer contacted,Pilsen
+E2008,T1005,created,Review started,Chinatown

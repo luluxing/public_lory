@@ -1,0 +1,6 @@
+plot_id,state,county_name,hybrid_name,irrigation_mode,acreage,soil_class
+CP-001,Illinois,McLean,DentMax 8,rainfed,120,mollisol
+CP-002,Indiana,Tippecanoe,Pioneer 210,supplemental,95,alfisol
+CP-003,Iowa,Story,Gold Kernel 5,rainfed,140,mollisol
+CP-004,Wisconsin,Dane,FieldStar 3,rainfed,88,alfisol
+CP-005,Minnesota,Blue Earth,ColdRise 2,rainfed,130,mollisol

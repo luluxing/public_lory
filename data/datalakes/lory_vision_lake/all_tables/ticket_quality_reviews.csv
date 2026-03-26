@@ -1,0 +1,7 @@
+review_id,ticket_id,reviewer_name,resolution_grade,followup_flag,qa_template
+QR-501,T1000,Mina Carter,A,yes,signal_standard_v2
+QR-502,T1001,Owen Diaz,B,no,inspection_standard_v1
+QR-503,T1002,Sasha Nguyen,A,yes,maintenance_standard_v3
+QR-504,T1003,Leo Thompson,B,no,closure_standard_v1
+QR-505,T1004,Ava Robinson,A,no,followup_standard_v2
+QR-506,T1005,Noah Price,A,no,review_standard_v1

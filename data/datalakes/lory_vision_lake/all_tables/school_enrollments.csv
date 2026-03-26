@@ -1,0 +1,11 @@
+enrollment_id,SchoolID,program,enroll_status
+EN3000,SC01,STEM Pathway,active
+EN3001,SC02,River North Honors,active
+EN3002,SC03,Community Arts,active
+EN3003,SC04,Hyde Park Prep,waiting
+EN3004,SC05,Urban Leadership,active
+EN3005,SC06,Uptown Engineering,active
+EN3006,SC07,Englewood Technical Track,active
+EN3007,SC08,Evanston Arts Core,waiting
+EN3008,SC09,Magnet Sciences,active
+EN3009,SC10,Oak Park Computing,active

@@ -1,0 +1,9 @@
+price_event_id,listing_id,price,change_reason,approval_status,analyst_code
+PE-7001,L300,315000,market_adjustment,approved,AN-11
+PE-7002,L301,405000,inspection_followup,approved,AN-12
+PE-7003,L302,447500,owner_revision,pending,AN-18
+PE-7004,L303,358000,staging_credit,approved,AN-11
+PE-7005,L400,325000,market_adjustment,approved,AN-14
+PE-7006,L401,412500,broker_revision,pending,AN-12
+PE-7007,L402,449000,comps_refresh,approved,AN-18
+PE-7008,L403,359500,package_update,approved,AN-14

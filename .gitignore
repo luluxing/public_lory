@@ -1,0 +1,10 @@
+.DS_Store
+.streamlit
+__pycache__
+augmentations_*
+.nfs*
+# data
+env
+.venv
+data.zip
+temp_tables/

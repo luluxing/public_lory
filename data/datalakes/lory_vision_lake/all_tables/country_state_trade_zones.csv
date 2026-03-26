@@ -1,0 +1,6 @@
+trade_country,state,trade_zone,anchor_crop,export_band,river_access
+United States,IL,Great Lakes Corridor,corn,tier_1,yes
+United States,IN,Wabash Valley Corridor,soybeans,tier_1,yes
+United States,IA,Upper Prairie Corridor,corn,tier_1,no
+United States,WI,Lake Michigan Corridor,feed grain,tier_2,yes
+United States,MN,Northern Plains Corridor,corn silage,tier_2,yes

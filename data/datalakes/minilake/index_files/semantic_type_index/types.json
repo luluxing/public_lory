@@ -1,0 +1,13 @@
+{
+  "people": {
+    "id": "person id",
+    "name": "person name",
+    "department_id": "department id",
+    "age": "age"
+  },
+  "departments": {
+    "department_id": "department id",
+    "department_name": "department name",
+    "budget": "budget amount"
+  }
+}
