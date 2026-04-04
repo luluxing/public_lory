@@ -1,0 +1,4 @@
+shipment_id,plate_state,commodity,origin_terminal,load_tons,carrier_type
+FS-20,Illinois,anhydrous_ammonia,Decatur North,26,tanker
+FS-21,Indiana,urea,Lafayette River,22,hopper
+FS-22,Wisconsin,potash,Madison West,18,hopper

@@ -1,0 +1,6 @@
+accident_id,date,victim_type,street_address,zipcode,city,state,country,neighborhood,severity
+A100,2025-05-01,pedestrian,120 N Wabash Ave,60602,Chicago,IL,USA,Loop,major
+A101,2025-05-02,cyclist,401 N State St,60654,Chicago,IL,USA,River North,moderate
+A102,2025-05-03,motorist,1460 S Michigan Ave,60605,Chicago,IL,USA,South Loop,minor
+A103,2025-05-04,scooter,950 W Lake St,60607,Chicago,IL,USA,West Loop,moderate
+A104,2025-05-05,pedestrian,1821 S Halsted St,60608,Chicago,IL,USA,Pilsen,major

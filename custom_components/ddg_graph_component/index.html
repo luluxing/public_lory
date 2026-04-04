@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      #graph-frame {
+        width: 100%;
+        border: 0;
+        display: block;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="graph-frame" title="DDG Graph"></iframe>
+    <script>
+      const iframe = document.getElementById("graph-frame");
+      let lastGraphHtml = "";
+
+      const Streamlit = {
+        setComponentReady() {
+          window.parent.postMessage(
+            {
+              isStreamlitMessage: true,
+              type: "streamlit:componentReady",
+              apiVersion: 1,
+            },
+            "*",
+          );
+        },
+        setFrameHeight(height) {
+          window.parent.postMessage(
+            {
+              isStreamlitMessage: true,
+              type: "streamlit:setFrameHeight",
+              height,
+            },
+            "*",
+          );
+        },
+        setComponentValue(value) {
+          window.parent.postMessage(
+            {
+              isStreamlitMessage: true,
+              type: "streamlit:setComponentValue",
+              value,
+            },
+            "*",
+          );
+        },
+      };
+
+      window.submitGeoAugmentationRequest = function submitGeoAugmentationRequest(value) {
+        Streamlit.setComponentValue(value);
+      };
+
+      function applyHeight(height) {
+        const resolvedHeight = Math.max(Number(height) || 540, 540);
+        iframe.style.height = `${resolvedHeight}px`;
+        document.documentElement.style.height = `${resolvedHeight}px`;
+        document.body.style.height = `${resolvedHeight}px`;
+        Streamlit.setFrameHeight(resolvedHeight);
+      }
+
+      function renderGraph(args) {
+        const graphHtml = typeof args.graph_html === "string" ? args.graph_html : "";
+        applyHeight(args.height);
+        if (graphHtml !== lastGraphHtml) {
+          iframe.srcdoc = graphHtml;
+          lastGraphHtml = graphHtml;
+        }
+      }
+
+      window.addEventListener("message", (event) => {
+        if (!event.data) {
+          return;
+        }
+        if (event.data.type === "streamlit:render") {
+          renderGraph(event.data.args || {});
+        }
+      });
+
+      window.addEventListener("load", () => {
+        Streamlit.setComponentReady();
+        applyHeight(540);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+listing_id,property_type,price,street_address,zipcode,city,state,country,agency_id,neighborhood
+L300,apartment,320000,55 E Monroe St,60603,Chicago,Illinois,USA,AG01,Loop
+L301,condo,410000,405 N Wabash Ave,60611,Chicago,Illinois,USA,AG02,River North
+L302,loft,450000,933 W Van Buren St,60607,Chicago,Illinois,USA,AG03,West Loop
+L303,townhome,360000,1830 S Racine Ave,60608,Chicago,Illinois,USA,AG01,Pilsen
+L400,apartment,330000,200 N Dearborn St,60601,Chicago,Illinois,USA,AG01,Loop
+L401,condo,415000,757 N Orleans St,60654,Chicago,Illinois,USA,AG02,River North
+L402,loft,455000,1250 S Michigan Ave,60605,Chicago,Illinois,USA,AG03,Loop
+L304,apartment,295000,2754 S Millard Ave,60623,Chicago,Illinois,USA,AG04,Little Village
+L305,apartment,380000,1509 N Milwaukee Ave,60622,Chicago,Illinois,USA,AG02,Wicker Park
+L306,condo,430000,1020 N Wood St,60622,Chicago,Illinois,USA,AG05,West Town
+L307,apartment,340000,4625 N Magnolia Ave,60640,Chicago,Illinois,USA,AG03,Uptown
+L308,condo,365000,6030 N Kenmore Ave,60660,Chicago,Illinois,USA,AG05,Edgewater
+L309,townhome,310000,3111 N Central Park Ave,60618,Chicago,Illinois,USA,AG04,Avondale
+L310,apartment,255000,11206 S St Lawrence Ave,60628,Chicago,Illinois,USA,AG06,Pullman
+L311,condo,375000,820 Mulford St,60202,Evanston,Illinois,USA,AG06,Evanston

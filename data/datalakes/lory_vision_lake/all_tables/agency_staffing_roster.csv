@@ -1,0 +1,7 @@
+roster_id,agency_id,agent_name,license_class,tenure_years,team_code
+RST-100,AG01,Alicia Gomez,class_a,6,central-ops
+RST-101,AG02,Marcus Lee,class_a,4,north-ops
+RST-102,AG03,Sophia Patel,class_b,5,core-lofts
+RST-103,AG04,Daniel Ruiz,class_b,8,west-field
+RST-104,AG05,Hannah Kim,class_a,3,lakeshore-1
+RST-105,AG06,Jordan Brooks,class_c,9,south-hub

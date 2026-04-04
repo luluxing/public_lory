@@ -1,0 +1,7 @@
+requirement_id,agency_ref,service-focus,region
+REQ1,AG01,central,Loop
+REQ2,AG02,north,River North
+REQ3,AG03,central,West Loop
+REQ4,AG04,west,Pilsen
+REQ5,AG05,lakeshore,Uptown
+REQ6,AG06,south,Pullman
