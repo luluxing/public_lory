@@ -1,0 +1,4 @@
+tractor_id,plate_state,fleet_operator,equipment_class,engine_hours,telematics_vendor
+TF-10,Illinois,Prairie Haul,row_crop,6800,FieldTrace
+TF-11,Indiana,Hoosier Grain,sprayer,5400,AgBeacon
+TF-12,Wisconsin,Badger Ag,utility,4100,FieldTrace

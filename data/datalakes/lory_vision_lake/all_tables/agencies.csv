@@ -1,0 +1,7 @@
+agency_id,agency_name,license_status,hq_address,zipcode,city,state,country,service_focus
+AG01,Loop Realty,active,33 W Monroe St,60603,Chicago,IL,USA,central
+AG02,Northside Living,active,401 N Wabash Ave,60611,Chicago,IL,USA,north
+AG03,Metro Loft Group,active,901 W Randolph St,60607,Chicago,IL,USA,central
+AG04,Neighborhood Homes,active,2750 S Kedzie Ave,60623,Chicago,IL,USA,west
+AG05,Lakeshore Realty,active,4753 N Broadway,60640,Chicago,IL,USA,lakeshore
+AG06,South & Suburban,active,11101 S Cottage Grove Ave,60628,Chicago,IL,USA,south

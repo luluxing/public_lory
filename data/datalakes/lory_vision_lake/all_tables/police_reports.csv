@@ -1,0 +1,20 @@
+report_id,accident_id,officer_id,status,precinct,report_address,zipcode,city,state,country
+R501,A100,CH-881,closed,Loop,130 N Michigan Ave,60602,Chicago,IL,United States
+R502,A101,CH-882,in_review,River North,410 N State St,60654,Chicago,IL,United States
+R503,A102,CH-883,pending,South Loop,1500 S Wabash Ave,60605,Chicago,IL,United States
+R504,A103,CH-884,open,West Loop,1000 W Lake St,60607,Chicago,IL,United States
+R505,A104,CH-885,closed,Pilsen,1858 S Halsted St,60608,Chicago,IL,United States
+R506,A105,CH-886,in_review,Chinatown,2210 S Wentworth Ave,60616,Chicago,IL,United States
+R507,A106,CH-887,pending,Bronzeville,3510 S Martin Luther King Dr,60653,Chicago,IL,United States
+R508,A107,CH-888,open,Hyde Park,5307 S Hyde Park Blvd,60615,Chicago,IL,United States
+R509,A108,CH-889,closed,Little Village,2815 S Kedzie Ave,60623,Chicago,IL,United States
+R510,A109,CH-890,in_review,Logan Square,2658 N Milwaukee Ave,60647,Chicago,IL,United States
+R511,A110,CH-891,pending,Wicker Park,1575 N Damen Ave,60622,Chicago,IL,United States
+R512,A111,CH-892,open,West Town,1112 N Ashland Ave,60622,Chicago,IL,United States
+R513,A112,CH-893,closed,Uptown,4712 N Broadway,60640,Chicago,IL,United States
+R514,A113,CH-894,in_review,Edgewater,5915 N Broadway,60660,Chicago,IL,United States
+R515,A114,CH-895,pending,Avondale,3120 N Elston Ave,60618,Chicago,IL,United States
+R516,A115,CH-896,open,Pullman,11120 S Cottage Grove Ave,60628,Chicago,IL,United States
+R517,A116,CH-897,closed,Englewood,6310 S Halsted St,60621,Chicago,IL,United States
+R518,A117,CH-898,in_review,Oak Park,1024 Lake St,60301,Oak Park,IL,United States
+R519,A118,CH-899,pending,Evanston,830 Dempster St,60202,Evanston,IL,United States

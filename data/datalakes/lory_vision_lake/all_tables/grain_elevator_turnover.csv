@@ -1,0 +1,4 @@
+elevator_id,plate_state,storage_class,weekly_turns,safety_band,inspection_cycle
+GE-30,Illinois,steel,3.1,A,monthly
+GE-31,Indiana,concrete,2.7,B,monthly
+GE-32,Wisconsin,annex,2.2,A,quarterly

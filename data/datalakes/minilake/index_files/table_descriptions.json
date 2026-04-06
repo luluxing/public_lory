@@ -1,0 +1,4 @@
+{
+  "people": "People records with names, department ids, and ages.",
+  "departments": "Departments with names and budget amounts."
+}

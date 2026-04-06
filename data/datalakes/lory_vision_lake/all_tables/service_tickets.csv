@@ -1,0 +1,7 @@
+ticket_id,service_type,customer_code,Precinct
+T1000,signal_issue,CUST-A1,Loop
+T1001,inspection_request,CUST-B2,River North
+T1002,maintenance_work,CUST-C3,South Loop
+T1003,road_closure_notice,CUST-D4,West Loop
+T1004,customer_followup,CUST-E5,Pilsen
+T1005,quality_review,CUST-F6,Chinatown

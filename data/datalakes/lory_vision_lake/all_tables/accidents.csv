@@ -1,0 +1,20 @@
+accident_id,date,victim_type,street_address,zipcode,city,state,country,neighborhood,severity
+A100,2025-05-01,pedestrian,120 N Wabash Ave,60602,Chicago,Illinois,US,Loop,major
+A101,2025-05-02,cyclist,401 N State St,60654,Chicago,Illinois,US,River North,moderate
+A102,2025-05-03,motorist,1460 S Michigan Ave,60605,Chicago,Illinois,US,South Loop,minor
+A103,2025-05-04,scooter,950 W Lake St,60607,Chicago,Illinois,US,West Loop,moderate
+A104,2025-05-05,pedestrian,1821 S Halsted St,60608,Chicago,Illinois,US,Pilsen,major
+A105,2025-05-06,motorist,2200 S Wentworth Ave,60616,Chicago,Illinois,US,Chinatown,minor
+A106,2025-05-07,cyclist,3501 S Martin Luther King Dr,60653,Chicago,Illinois,US,Bronzeville,major
+A107,2025-05-08,pedestrian,5300 S Hyde Park Blvd,60615,Chicago,Illinois,US,Hyde Park,moderate
+A108,2025-05-09,motorist,2800 S Kedzie Ave,60623,Chicago,Illinois,US,Little Village,major
+A109,2025-05-10,pedestrian,2650 N Milwaukee Ave,60647,Chicago,Illinois,US,Logan Square,minor
+A110,2025-05-11,cyclist,1560 N Damen Ave,60622,Chicago,Illinois,US,Wicker Park,moderate
+A111,2025-05-12,pedestrian,1100 N Ashland Ave,60622,Chicago,Illinois,US,West Town,minor
+A112,2025-05-13,cyclist,4700 N Broadway,60640,Chicago,Illinois,US,Uptown,major
+A113,2025-05-14,pedestrian,5900 N Broadway,60660,Chicago,Illinois,US,Edgewater,minor
+A114,2025-05-15,motorist,3100 N Elston Ave,60618,Chicago,Illinois,US,Avondale,moderate
+A115,2025-05-16,pedestrian,11100 S Cottage Grove Ave,60628,Chicago,Illinois,US,Pullman,major
+A116,2025-05-17,cyclist,6300 S Halsted St,60621,Chicago,Illinois,US,Englewood,moderate
+A117,2025-05-18,motorist,1010 Lake St,60301,Oak Park,Illinois,US,Oak Park,minor
+A118,2025-05-19,pedestrian,816 Dempster St,60202,Evanston,Illinois,US,Evanston,moderate

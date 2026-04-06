@@ -1,0 +1,7 @@
+work_order_id,ticket_id,assigned_vendor,repair_status,material_code,billed_hours
+WO-9001,T1000,SignalOps LLC,queued,SIG-AX2,3.5
+WO-9002,T1001,Corridor Check Inc,in_progress,INS-B14,2.0
+WO-9003,T1002,Pavement Lab Partners,scheduled,MTN-C77,5.5
+WO-9004,T1003,Urban Routing Group,completed,CLS-D08,4.0
+WO-9005,T1004,Civic Support Works,queued,FUP-E22,1.5
+WO-9006,T1005,Review Desk Co,completed,QRY-F19,2.5

@@ -1,0 +1,11 @@
+school_id,name,address,zipcode,city,state,country,neighborhood
+SC01,Loop STEM Academy,201 E Randolph St,60601,Chicago,Illinois,US,Loop
+SC02,River North Prep,325 W Chicago Ave,60654,Chicago,Illinois,US,River North
+SC03,Pilsen Community School,1850 S Blue Island Ave,60608,Chicago,Illinois,US,Pilsen
+SC04,Hyde Park Academy,6220 S Stony Island Ave,60637,Chicago,Illinois,US,Hyde Park
+SC05,West Town Charter,1440 W Hubbard St,60642,Chicago,Illinois,US,West Town
+SC06,Uptown Arts High,4707 N Broadway,60640,Chicago,Illinois,US,Uptown
+SC07,Englewood Technical,6201 S Stewart Ave,60621,Chicago,Illinois,US,Englewood
+SC08,Evanston Township,1600 Dodge Ave,60201,Evanston,Illinois,US,Evanston
+SC09,Logan Square Magnet,2410 N Sawyer Ave,60647,Chicago,Illinois,US,Logan Square
+SC10,Oak Park Academy,211 S Ridgeland Ave,60302,Oak Park,Illinois,US,Oak Park

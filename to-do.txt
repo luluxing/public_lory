@@ -1,0 +1,148 @@
+Lory-j UI upgrade suggestions
+Date: 2026-03-13
+
+Purpose
+Summarize UI improvements suggested from the paper draft and reviewer comments, ranked from highest priority to lowest. The top suggestion is elaborated in more detail because it directly addresses the reviewers' concern that the demo scenarios are not clearly tied to the real datasets or expected user insights.
+
+Top priority
+
+1. Scenario-to-Dataset Guided Workflows
+Add curated, dataset-specific entry points so users begin from meaningful questions rather than from raw mechanics such as "upload data" and "draw a box."
+
+Why this matters
+- Reviewer concern: the demonstration scenarios are not clearly correlated to the pharma and wildlife datasets.
+- Current issue: the UI appears to demonstrate the system pipeline, but not the real questions users would ask or the insights they would expect.
+- Goal: make the demo feel purposeful, grounded, and insight-driven.
+
+What to add
+- A landing panel after ingestion with scenario cards for each dataset.
+- Each scenario card should include:
+  - a one-line research question
+  - the base table(s)
+  - the spatial predicate involved
+  - the expected joined attributes
+  - the expected insight
+- When the user clicks a scenario, the UI should prefill:
+  - target attributes
+  - suggested spatial constraint
+  - suggested join predicates
+  - relevant geographic extent
+  - optionally a sample ranked join path
+
+Suggested pharma scenarios
+- Find pharmacies or facilities in medically underserved areas.
+- Analyze proximity between manufacturers, hospitals, and adverse event regions.
+- Study access gaps where facilities are near dense populations but far from hospitals.
+- Enrich facility records with nearby demographic, regulatory, or environmental context.
+
+Suggested wildlife scenarios
+- Find species observations near roads, rivers, or wildfire zones.
+- Connect animal sightings to habitat boundaries and nearby human activity.
+- Study overlap between protected areas and observed migration points.
+- Enrich sightings with land cover, weather, or water access context.
+
+Example scenario card
+- Wildlife: Which sightings occur near recent fire zones and outside protected habitats?
+- Expected insight: identify potentially vulnerable species activity regions.
+
+Recommended UI flow
+- Step 1: Choose dataset.
+- Step 2: Choose question.
+- Step 3: Explore generated join paths.
+
+Why this is better than the current flow
+- It answers the reviewer's "why these datasets?" question directly.
+- It gives users a believable starting point.
+- It makes the value of spatial join discovery clearer, because the user can see what purely relational discovery would miss.
+
+Also include a "Why this dataset?" explainer panel
+- For each dataset, state why it is spatially interesting.
+- Explain what kinds of hybrid joins are uniquely enabled.
+- State what a purely relational system would fail to capture.
+
+Example framing
+- Pharma: healthcare access, facility regulation, and population need are geographically grounded.
+- Wildlife: habitat, sightings, roads, fires, and water sources are inherently spatial and often cannot be connected meaningfully with only equi-joins.
+
+2. Join Path Explanation Panel
+- For each returned path, show path steps, join type, participating columns, predicate, score, estimated result size, and the reason it ranked highly.
+
+3. Path Comparison Workspace
+- Let users pin multiple candidate paths and compare coverage, row count, confidence, hop count, spatial footprint, and overlap side by side.
+
+4. Richer Geographic Query Forms
+- Support polygon, lasso, circle-radius, nearest-neighbor, containment, intersection, point-with-buffer, and current viewport selection.
+
+5. Result Preview Before Materialization
+- Show sample joined rows, map highlights, and table lineage immediately when a path is selected.
+
+6. Ranking Transparency
+- Expose the ranking factors such as spatial relevance, join confidence, attribute coverage, semantic similarity, path length penalty, and estimated output quality.
+
+High priority
+
+7. Interactive Join Graph Explorer
+- Let users navigate the discovered graph, filter by edge type, and inspect neighborhoods around tables or paths.
+
+8. Offline Pipeline Inspector
+- Show ingestion progress, location-column detection results, geocoding status, partition counts, quadtree levels, detected joins, and preprocessing time.
+
+9. Quadtree / Spatial Partition Visualization
+- Visualize how tuples or partitions fall into quadtree cells and how bottom-up spatial joinability is detected.
+
+10. Schema and Location Detection Inspector
+- For each table, show detected location columns, sample values, geocoding confidence, alternate interpretations, and errors.
+
+11. Semantic Join Suggestions
+- Surface normalization or semantic matches such as "NYC" versus "New York City," aliases, ontology hints, or embedding-based candidates when exact equi-joins are weak.
+
+12. Metrics Dashboard for Returned Paths
+- Add compact cards for confidence, coverage, spatial selectivity, duplication risk, null rate, hop count, and estimated runtime.
+
+Medium priority
+
+13. What-If Controls
+- Add sliders and toggles for radius, top-k nearest, max hops, join type inclusion, confidence threshold, and ranking weights.
+
+14. Step-by-Step Join Playback
+- Animate how a join path is formed from the base table to the final dataset on both the graph and the map.
+
+15. Brushing-and-Linking Across Views
+- Selecting map points should highlight rows in the preview table and the responsible edges in the join graph, and vice versa.
+
+16. Geocoder / Resolver Swap Panel
+- Make the geocoding backend configurable, such as Google, Nominatim, cached resolver, or pre-geocoded coordinates.
+
+17. Cost / Accuracy Trade-off Controls for LLM Processing
+- Show fast versus accurate modes, model choice, sample size, caching, and estimated preprocessing cost or time.
+
+18. Experimental Snapshot Panel
+- Show lightweight benchmark stats such as preprocessing time, number of tables, number of detected joins, latency, and memory use.
+
+Nice to have
+
+19. Saved Queries / Reproducible Sessions
+- Save scenario, region, filters, selected path, and outputs for later reuse or sharing.
+
+20. Spatial Coverage Comparison View
+- Overlay the footprints of multiple paths and show uncovered areas or redundant overlap.
+
+21. Natural Language Query Assistant
+- Translate requests such as "accidents near schools and closest hospital in west Chicago" into attributes and spatial predicates.
+
+22. Timeline / Temporal Filter
+- If datasets contain time fields, combine temporal and spatial filtering.
+
+23. Narrated Demo Mode
+- Offer a guided mode that explains each stage and the expected insight from the chosen scenario.
+
+24. Recommendation Panel for Related Attributes
+- Suggest possible enrichments such as nearby facilities, risk indicators, demographics, or environmental context.
+
+Lowest priority
+
+25. Fancy Animations / Visual Polish
+- Add transitions and animated path drawing only after the explainability and scenario issues are solved.
+
+26. 3D Map or Advanced Cartography
+- Visually impressive, but low value relative to ranking transparency, dataset grounding, and path evaluation.
